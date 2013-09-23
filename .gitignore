@@ -12,3 +12,14 @@ logs
 results
 
 npm-debug.log
+
+# OSX
+.DS_Store
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# nodejs npm modules
+node_modules
+

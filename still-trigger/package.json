@@ -1,0 +1,15 @@
+{
+    "name": "still-pusher",
+    "version": "1.0.0",
+    "description": "Watches directory of stillshot images",
+    "author": "Jason Dudash <thenut77@gmail.com>",
+    "license": "GPLv2",
+    "dependencies": {
+        "optimist": "*",
+        "moment": "*"
+    },
+    "engines": {
+        "node": ">= 0.10.x",
+        "npm": ">= 1.3.x"
+    }
+}
