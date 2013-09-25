@@ -1,5 +1,4 @@
 {
-    "exec": "raspistill",
     "imageconfig": "-vs -ex auto -awb auto -ifx none --m average",
     "extraconfig": "-v -n -t 0"
 }

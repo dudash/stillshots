@@ -20,9 +20,9 @@ default ('t', '168')
     .alias('t', 'timeout')
     .describe('t', 'Timeout in seconds between shots')
     .
-default ('l', '')
-    .alias('l', 'cfgfile')
-    .describe('l', 'Local config file to use (negates any remote server)')
+default ('f', '')
+    .alias('f', 'cfgfile')
+    .describe('f', 'Local config file to use (negates any remote server)')
     .
 default ('r', 'http://127.0.0.1')
     .alias('r', 'remotehost')
@@ -32,12 +32,10 @@ default ('p', '3000')
     .alias('p', 'remoteport')
     .describe('p', 'Remote port to get configuration from')
     .
-default ('c', '30')
-    .alias('c', 'remotetimeout')
-    .describe('c', 'Timeout in seconds to poll the config server')
-
+default ('o', '30')
+    .alias('o', 'remotetimeout')
+    .describe('o', 'Timeout in seconds to poll the config server');
 var argv = optimist.argv;
-
 if (argv.help) {
     optimist.showHelp();
     process.exit(0);
@@ -53,18 +51,19 @@ console.log(process.argv[1] + ': running');
 // load in the configuration file if specified
 if (argv.cfgfile.length > 1) {
     console.log('DEBUG: using local config ' + argv.cfgfile);
-    var fileContents = fs.readFileSync(argv.cfgfile, 'utf8');
     try {
+        var fileContents = fs.readFileSync(argv.cfgfile, 'utf8');
         var configData = JSON.parse(fileContents);
         parseConfigData(configData);
     } catch (ex) {
-        console.log('Error! config file is corrupt');
+        console.log('Error! config file is corrupt or missing');
         process.exit(1);
     }
 } else {
     // setup a timeout to poll the remote server for config updates
     var cfgIntervalId = setInterval(function() {
-        var url = argv.host + ':' + argv.port + '/config.json';
+        var url = 'http://' + argv.remotehost + ':' + argv.remoteport + '/config.json';
+        console.log('DEBUG: fetching config from:' + url);
         http.get(url,
             function(res) {
                 var body = '';
@@ -73,21 +72,21 @@ if (argv.cfgfile.length > 1) {
                 });
                 res.on('end', function() {
                     var configdata = JSON.parse(body);
-                    console.log("DEBUG: got response: ", configdata);
+                    //console.log("DEBUG: got response: ", JSON.stringify(configdata));
                     parseConfigData(configdata);
                 });
             }).on('error', function(e) {
             console.log("Error! could not get remote config, details: ", e);
         });
-    }, argv.cfgtimeout * 1000);
+    }, argv.remotetimeout * 1000);
 }
 
 // setup a timeout callback to exec commands
 var stillIntervalId = setInterval(function() {
-    console.log("Still Trigger: taking a stillshot");
+    console.log("INFO: still-trigger: taking a stillshot");
     setOutputCommandLine();
     var joinedcommand = commandexec + ' ' + extraconfig + ' ' + imageconfig + ' ' + outputcmd;
-    console.log("DEBUG: child cmd = " + joinedcommand);
+    //console.log("DEBUG: cmd = " + joinedcommand);
     var child = exec(joinedcommand,
         function(error, stdout, stderr) {
             if (stdout !== '') {
@@ -105,16 +104,15 @@ var stillIntervalId = setInterval(function() {
 //-----------------------------------------------------------------------------
 
 function setOutputCommandLine() {
-	var outpath = './timelapse';  // TODO make this configurable
-	var outfilename = moment().format('YYYY-MM-DDTHH-mm-ss');
-	outputcmd = '-o ' + outpath + '/' + outfilename;
+    var outpath = './timelapse'; // TODO make this configurable
+    var outfilename = moment().format('YYYY-MM-DDTHH-mm-ss');
+    outputcmd = '-o ' + outpath + '/' + outfilename;
 }
 
 //-----------------------------------------------------------------------------
 
 function parseConfigData(configData) {
-	console.log('DEBUG: parsing config from ' + JSON.stringify(configData));
-    commandexec = configData['commandexec'];
+    //console.log('DEBUG: parsing config from ' + JSON.stringify(configData));
     extraconfig = configData['extraconfig'];
     imageconfig = configData['imageconfig'];
 }

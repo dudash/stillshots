@@ -1,0 +1,4 @@
+{
+    "imageconfig": "-vs -ex verylong -awb auto -ifx none --m average",
+    "extraconfig": "-v -n -t 0"
+}

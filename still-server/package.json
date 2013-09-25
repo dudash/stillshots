@@ -1,11 +1,15 @@
 {
-  "name": "still-server",
-  "version": "1.0.0",
-  "description": "REST based server for accepting stillshot uploads and providing config",
-  "author": "Jason Dudash <thenut77@gmail.com>",
-  "license": "GPLv2",
-  "engines": {
-    "node": ">= 0.10.x",
-    "npm":  ">= 1.3.x"
-  }
+    "name": "still-server",
+    "version": "1.0.0",
+    "description": "REST based server for accepting stillshot uploads and providing config",
+    "author": "Jason Dudash <thenut77@gmail.com>",
+    "license": "GPLv2",
+    "dependencies": {
+        "optimist": "*",
+        "moment": "*"
+    },
+    "engines": {
+        "node": ">= 0.10.x",
+        "npm": ">= 1.3.x"
+    }
 }

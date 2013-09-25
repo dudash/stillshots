@@ -9,6 +9,14 @@ Author(s)
 [@thenut77](http://twitter.com/)
 
 
+Run Notes
+-------------------------------------------------------------------------------
+To run:
+1) git clone
+2) npm install
+3) node still-pusher.js [options]
+
+
 Version Release Notes
 -------------------------------------------------------------------------------
 No Releases
