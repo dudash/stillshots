@@ -11,7 +11,9 @@ var optimist = require('optimist')
     .alias('h', 'help')
     .demand('f')
     .alias('f', 'cfgfile')
-    .describe('f', 'Config file to provide as a resouce');
+    .describe('f', 'Config file to provide as a resouce')
+    .alias('d', 'dynamic')
+    .describe('d', 'Use a dynamic smart configuration (TODO just a file reload for now)');
 var argv = optimist.argv;
 if (argv.help) {
     optimist.showHelp();
@@ -26,7 +28,7 @@ if (argv.cfgfile.length > 0) {
     process.exit(1);
 }
 
-var hostip = "127.0.0.1";
+var hostip = "0.0.0.0";
 var hostport = 3000;
 var server = http.createServer(function(req, res) {
     console.log('DEBUG: got a ' + req.method + ' request for ' + req.url);
@@ -36,9 +38,13 @@ var server = http.createServer(function(req, res) {
         res.end('Welcome to the Still Server');
     } else if (req.method == "GET" && req.url == '/config.json') {
         console.log('DEBUG: - responding with json configuration');
+        if (argv.dynamic) {
+            buildDynamicStillConfig();
+        }
         res.writeHead(200, {
             'Content-Type': 'application/json'
         });
+        console.log('DEBUG: data = ' + JSON.stringify(configData));
         res.end(JSON.stringify(configData));
     } else if (req.method == "GET" && req.url == '/thumbs') {
         console.log('  - TODO show thumbs');
@@ -76,12 +82,9 @@ function parseDefaultStillConfig() {
 //-----------------------------------------------------------------------------
 
 function buildDynamicStillConfig() {
-
+    console.log('DEBUG: TODO build dynamic config');
     // TODO respond with configuration optimized for weather and timeof day
 
-    return {
-        "imageconfig": "-vs -ex auto -awb auto -ifx none --m average",
-        "extraconfig": "-v -n -t 0"
-    }
-
+    // for now just reparse the file we loaded
+    parseDefaultStillConfig();
 }
