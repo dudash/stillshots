@@ -2,7 +2,11 @@
 // (C) 2013 Jason Dudash
 // Licensed as GNU GPLv2
 var fs = require('fs'),
-    util = require('util');
+    util = require('util'),
+    path = require('path'),
+    gm = require('gm'),
+    request = require('request'),
+    bunyan = require('bunyan');
 
 var optimist = require('optimist')
     .usage('Usage: $0')
@@ -18,38 +22,83 @@ if (argv.help) {
     process.exit(0);
 }
 
+var log = bunyan.createLogger({
+    name: 'still-pusher-logger',
+    level: process.env.LOG_LEVEL || 'info',
+    stream: process.stdout,
+    serializers: bunyan.stdSerializers
+});
+
+var serverUploadURL = 'http://127.0.0.1:8080/uploads/';
+
 // verify that the directory exists - do this synchronously because it needs to happen now
 var exists = fs.existsSync(argv.watchdir);
 if (!exists) {
-    console.log('Error: Could not access directory \'' + argv.watchdir + '\'');
+    log.fatal('Error: Could not access directory \'' + argv.watchdir + '\'');
     process.exit(1);
 }
 
-console.log('INFO: still-pusher watching on directory \'' + argv.watchdir + '\'');
+log.info('still-pusher building thumbs under directory \'' + argv.watchdir + '\'');
+try {
+    fs.mkdirSync(argv.watchdir + '/thumbs');
+} catch (e) {
+    if (e.code != 'EEXIST') {
+        throw e;
+    }
+}
+
+log.info('still-pusher watching on directory \'' + argv.watchdir + '\'');
 
 // kick off a watch loop to see change events
 fs.watch(argv.watchdir, function(event, filename) {
-    console.log('event is: ' + event);
+    if (event != 'rename') return; // adding files registers as rename
     if (filename) {
-        console.log('DEBUG: filename provided is: ' + filename);
+        log.trace('filename provided is: ' + filename);
+        //  check to make sure this is an image notification
+        var exttype = path.extname(filename).toLowerCase();
+        if (exttype != '.jpg' &&
+            exttype != '.bmp' &&
+            exttype != '.gif' &&
+            exttype != '.png') {
+            log.trace('file change is not for an image file ' + argv.watchdir + '/' + filename);
+            return;
+        }
+        // check to make sure the image is still there
+        var exists = fs.existsSync(argv.watchdir + '/' + filename);
+        if (!exists) {
+            log.trace('file change is not a file addition ' + argv.watchdir + '/' + filename);
+            return;
+        }
 
-        // TODO process file change
-        // build thumbnail
-        // push thumbnail to server
-
+        // build thumbnail as 150x150 and strip metadata
+        var thumbnailFile = argv.watchdir + '/thumbs/thumb_' + filename;
+        gm(filename)
+            .noProfile()
+            .resize(150, 150)
+            .write(thumbnailFile, function(err) {
+                if (err) {
+                    log.error('ERROR: gm failed to create thumbnail ' + thumbnailFile);
+                } else {
+                    // push thumbnail to server using the request module
+                    var readStream = fs.createReadStream(thumbnailFile);
+                    var posturl = serverUploadURL + 'thumb_' + filename;
+                    readStream.on('open', function() {
+                        // pipe the readstream data in to a post request (it will set the content type)
+                        var pipepost = readStream.pipe(request.post(posturl));
+                        pipepost.on('error', function(err) {
+                            log.error('ERROR: couldnt to post to server - make sure it is running');
+                        });
+                        pipepost.on('end', function() {
+                            log.info('wrote thumbnail to ' + serverUploadURL);
+                        });
+                    });
+                    readStream.on('error', function(err) {
+                        log.error('ERROR: couldnt read thumbnail file for transmission to server');
+                    });
+                }
+            });
     } else {
-        console.log('Error: filename not provided, ignoring this event');
+        log.trace('filename not provided, ignoring this event');
+        return;
     }
 });
-
-//-----------------------------------------------------------------------------
-
-function makeThumbnail() {
-    // TODO build a thumbnail out of the image file
-}
-
-//-----------------------------------------------------------------------------
-
-function putThumbnail() {
-    // TODO push new thumbnail and metatdata via HTTP to the server
-}
