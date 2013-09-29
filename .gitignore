@@ -23,3 +23,6 @@ Icon?
 # nodejs npm modules
 node_modules
 
+#stillshots custom
+uploads
+thumbs

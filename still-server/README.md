@@ -18,7 +18,12 @@ To run:
 3) node still-server.js [options]
 
 
-Version Release Notes
+Debug Notes
 -------------------------------------------------------------------------------
 To run in debug mode with pretty printed bunyan logs, use: 
   > LOG_LEVEL=debug node still-server.js -f ./example_config.json | ./node_modules/.bin/bunyan
+
+
+Version Release Notes
+-------------------------------------------------------------------------------
+No Releases

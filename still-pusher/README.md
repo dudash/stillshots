@@ -17,6 +17,14 @@ To run:
 3) node still-pusher.js [options]
 
 
+Debug Notes
+-------------------------------------------------------------------------------
+To run in debug mode with pretty printed bunyan logs, use: 
+> LOG_LEVEL=debug NODE_DEBUG=true node still-pusher.js | ./node_modules/.bin/bunyan
+
+There is a test image in the data directory that you can use to test pushes
+
+
 Version Release Notes
 -------------------------------------------------------------------------------
 No Releases

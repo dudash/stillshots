@@ -1,5 +1,6 @@
 // still-pusher
-// (C) 2013 Jason Dudash
+// https://github.com/thenut77/stillshots
+// (C) 2013 Jason Dudash, All Rights Reserved
 // Licensed as GNU GPLv2
 var fs = require('fs'),
     util = require('util'),
@@ -15,7 +16,15 @@ var optimist = require('optimist')
 default ('d', '.')
     .demand('d')
     .alias('d', 'watchdir')
-    .describe('d', 'Directory to watch for stills');
+    .describe('d', 'Directory to watch for stills')
+    .
+default ('r', 'http://127.0.0.1')
+    .alias('r', 'remotehost')
+    .describe('r', 'Remote host to push thumbnails to')
+    .
+default ('p', '8080')
+    .alias('p', 'remoteport')
+    .describe('p', 'Remote port to push thumbnails to');
 var argv = optimist.argv;
 if (argv.help) {
     optimist.showHelp();
@@ -29,7 +38,8 @@ var log = bunyan.createLogger({
     serializers: bunyan.stdSerializers
 });
 
-var serverUploadURL = 'http://127.0.0.1:8080/uploads/';
+var serverUploadURL = argv.remotehost + ':' + argv.remoteport + '/uploads/';
+log.debug('still-pusher pushing thumbs to server\'' + serverUploadURL + '\'');
 
 // verify that the directory exists - do this synchronously because it needs to happen now
 var exists = fs.existsSync(argv.watchdir);
@@ -38,7 +48,7 @@ if (!exists) {
     process.exit(1);
 }
 
-log.info('still-pusher building thumbs under directory \'' + argv.watchdir + '\'');
+log.debug('still-pusher building thumbs under directory \'' + argv.watchdir + '\'');
 try {
     fs.mkdirSync(argv.watchdir + '/thumbs');
 } catch (e) {
@@ -46,8 +56,7 @@ try {
         throw e;
     }
 }
-
-log.info('still-pusher watching on directory \'' + argv.watchdir + '\'');
+log.debug('still-pusher watching on directory \'' + argv.watchdir + '\'');
 
 // kick off a watch loop to see change events
 fs.watch(argv.watchdir, function(event, filename) {

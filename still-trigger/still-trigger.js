@@ -1,7 +1,7 @@
 // still-trigger
-// (C) 2013 Jason Dudash
-// GNU GPL v2
-
+// https://github.com/thenut77/stillshots
+// (C) 2013 Jason Dudash, All Rights Reserved
+// Licensed as GNU GPLv2
 var sys = require('sys'),
     http = require('http'),
     fs = require('fs'),
