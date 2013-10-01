@@ -31,9 +31,24 @@ var log = bunyan.createLogger({
     serializers: bunyan.stdSerializers
 });
 
-log.debug('still-server saving uploads under directory \'uploads\'');
+log.debug('still-server saving uploads under directory \'uploads/thumbs\'');
+log.debug('still-server saving uploaded originals under directory \'uploads/originals\'');
 try {
     fs.mkdirSync('./uploads');
+} catch (e) {
+    if (e.code != 'EEXIST') {
+        throw e;
+    }
+}
+try {
+    fs.mkdirSync('./uploads/thumbs');
+} catch (e) {
+    if (e.code != 'EEXIST') {
+        throw e;
+    }
+}
+try {
+    fs.mkdirSync('./uploads/originals');
 } catch (e) {
     if (e.code != 'EEXIST') {
         throw e;
@@ -48,7 +63,7 @@ if (argv.cfgfile.length > 0) {
     process.exit(1);
 }
 
-var hostport = 8080;
+var hostport = process.env.PORT || 8080;
 var server = restify.createServer({
     log: log,
     name: 'still-server',
@@ -95,7 +110,7 @@ server.get('/config.json', function(req, res, next) {
 server.get('/thumbs', function(req, res, next) {
     log.debug('responding with thumbnails list');
     // asynchronously read the upload files
-    fs.readdir('./uploads/', function(err, files) {
+    fs.readdir('./uploads/thumbs', function(err, files) {
         if (err) {
             log.warn('Error getting files in upload path: ' + err);
             res.send('Error getting thumbnails');
@@ -110,7 +125,7 @@ server.get('/thumbs', function(req, res, next) {
         // respond with page and list every image file
         var body = '<html><body><h2>Uploaded Thumbnails</h2>';
         files.forEach(function(filename) {
-            body += '<img src=\'./uploads/' + filename + '\'/>';
+            body += '<img src=\'./uploads/thumbs/' + filename + '\'/>';
         });
         body += '</body></html>';
         res.writeHead(200, {
@@ -124,16 +139,39 @@ server.get('/thumbs', function(req, res, next) {
 });
 
 // GET thumbnail images
-var staticThumbsServer = connect.static(__dirname + '/uploads');
-server.get(/\/uploads\/*/, function(req, res, next) {
-  req.url = req.url.substr('/uploads'.length); // take off leading path so that connect locates it correctly
-  return staticThumbsServer(req, res, next);
+var staticThumbsServer = connect.static(__dirname + '/uploads/thumbs');
+server.get(/\/uploads\/thumbs\/*/, function(req, res, next) {
+    req.url = req.url.substr('/uploads/thumbs'.length); // take off leading path so that connect locates it correctly
+    return staticThumbsServer(req, res, next);
 });
 
 // POST new thumbnail to server
-server.post('/uploads/:name', function(req, res, next) {
-    res.log.debug(req.params, 'uploads got a POST for ' + req.params.name);
-    var outfile = './uploads/' + req.params.name;
+server.post('/uploads/thumbs/:name', function(req, res, next) {
+    res.log.debug(req.params, 'uploads got a thumbnail POST for ' + req.params.name);
+    var outfile = './uploads/thumbs/' + req.params.name;
+    var writeStream = fs.createWriteStream(outfile);
+    log.debug('about to pipe resource body in to: ' + outfile);
+    req.pipe(writeStream);
+    writeStream.on('close', function() {
+        log.debug('end write to uploaded file');
+        req.end();
+    });
+    req.on('end', function() {
+        log.debug('end client request, sending OK to requestor');
+        res.send(200, {
+            ok: 'ok'
+        });
+    });
+    writeStream.on('error', function(err) {
+        log.debug('couldnt write uploaded file: ' + err);
+    });
+    return next();
+});
+
+// POST new thumbnail to server
+server.post('/uploads/originals/:name', function(req, res, next) {
+    res.log.debug(req.params, 'uploads got a original size POST for ' + req.params.name);
+    var outfile = './uploads/originals/' + req.params.name;
     var writeStream = fs.createWriteStream(outfile);
     log.debug('about to pipe resource body in to: ' + outfile);
     req.pipe(writeStream);

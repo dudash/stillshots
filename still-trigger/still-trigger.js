@@ -49,7 +49,7 @@ if (argv.help) {
 var commandexec = argv.exec;
 var extraconfig = ''; // we will fill this out as needed from config
 var imageconfig = ''; // we will fill this out as needed from config
-var outputcmd = '-o ./still.png'; // this will change based on the config
+var outputcmd = '-o ./still.jpg'; // this will change based on the config
 
 var log = bunyan.createLogger({
     name: 'still-trigger-logger',
@@ -114,10 +114,19 @@ var stillIntervalId = setInterval(function() {
 }, argv.timeout * 1000);
 
 //-----------------------------------------------------------------------------
-
+var numberpostfix = 0;
 function setOutputCommandLine() {
-    // TODO check if output path exists and if not create it
-    var outfilename = moment().format('YYYY-MM-DDTHH-mm-ss');
+    // if you want timestamps in the name
+    //var prefix = moment().format('YYYY-MM-DDTHH-mm-ss');
+
+    // hack to get postfix formatted for ffmpeg
+    var postfix = '' + numberpostfix;
+    while (postfix.length < 4) {
+        postfix = '0' + postfix;
+    }
+    var outfilename = 'image_' + postfix + '.jpg';
+    numberpostfix = numberpostfix + 1;
+
     outputcmd = '-o ' + argv.outputpath + '/' + outfilename;
 }
 

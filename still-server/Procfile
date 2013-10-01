@@ -1,1 +1,1 @@
-web: node still-server.js
+web: node still-server.js -f ./example_config.json

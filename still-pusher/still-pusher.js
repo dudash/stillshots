@@ -13,10 +13,10 @@ var optimist = require('optimist')
     .usage('Usage: $0')
     .alias('h', 'help')
     .
-default ('d', '.')
-    .demand('d')
-    .alias('d', 'watchdir')
-    .describe('d', 'Directory to watch for stills')
+default ('w', '.')
+    .demand('w')
+    .alias('w', 'watchdir')
+    .describe('w', 'Directory to watch for stills')
     .
 default ('r', 'http://127.0.0.1')
     .alias('r', 'remotehost')
@@ -24,7 +24,13 @@ default ('r', 'http://127.0.0.1')
     .
 default ('p', '8080')
     .alias('p', 'remoteport')
-    .describe('p', 'Remote port to push thumbnails to');
+    .describe('p', 'Remote port to push thumbnails to')
+    .
+default ('d', '500')
+    .alias('d', 'timedelay')
+    .describe('d', 'Time to delay push of data after notification is received')
+    .alias('o', 'pushoriginal')
+    .describe('o', 'Push the original file up to the server also');
 var argv = optimist.argv;
 if (argv.help) {
     optimist.showHelp();
@@ -38,9 +44,12 @@ var log = bunyan.createLogger({
     serializers: bunyan.stdSerializers
 });
 
-var serverUploadURL = argv.remotehost + ':' + argv.remoteport + '/uploads/';
+var serverUploadURL = argv.remotehost + ':' + argv.remoteport + '/uploads/thumbs/';
+var serverUploadOriginalURL = argv.remotehost + ':' + argv.remoteport + '/uploads/originals/';
 log.debug('still-pusher pushing thumbs to server\'' + serverUploadURL + '\'');
-
+if (argv.pushoriginal) {
+    log.debug('still-pusher pushing originals to server\'' + serverUploadOriginalURL + '\'');
+}
 // verify that the directory exists - do this synchronously because it needs to happen now
 var exists = fs.existsSync(argv.watchdir);
 if (!exists) {
@@ -79,33 +88,55 @@ fs.watch(argv.watchdir, function(event, filename) {
             return;
         }
 
-        // build thumbnail as 150x150 and strip metadata
-        var thumbnailFile = argv.watchdir + '/thumbs/thumb_' + filename;
-        gm(filename)
-            .noProfile()
-            .resize(150, 150)
-            .write(thumbnailFile, function(err) {
-                if (err) {
-                    log.error('ERROR: gm failed to create thumbnail ' + thumbnailFile);
-                } else {
-                    // push thumbnail to server using the request module
-                    var readStream = fs.createReadStream(thumbnailFile);
-                    var posturl = serverUploadURL + 'thumb_' + filename;
-                    readStream.on('open', function() {
-                        // pipe the readstream data in to a post request (it will set the content type)
-                        var pipepost = readStream.pipe(request.post(posturl));
-                        pipepost.on('error', function(err) {
-                            log.error('ERROR: couldnt to post to server - make sure it is running');
+        setTimeout(function() {
+            // build thumbnail as 150x150 and strip metadata
+            var thumbnailFile = argv.watchdir + '/thumbs/thumb_' + filename;
+            var originalFile = argv.watchdir + '/' + filename;
+            gm(originalFile)
+                .noProfile()
+                .resize(150, 150)
+                .write(thumbnailFile, function(err) {
+                    if (err) {
+                        log.error('ERROR: gm failed to create thumbnail ' + thumbnailFile + '-' + err);
+                    } else {
+                        // push thumbnail to server using the request module
+                        var readStream = fs.createReadStream(thumbnailFile);
+                        var posturl = serverUploadURL + 'thumb_' + filename;
+                        readStream.on('open', function() {
+                            // pipe the readstream data in to a post request (it will set the content type)
+                            var pipepost = readStream.pipe(request.post(posturl));
+                            pipepost.on('error', function(err) {
+                                log.error('ERROR: couldnt to post thumb to server - make sure it is running');
+                            });
+                            pipepost.on('end', function() {
+                                log.info('wrote thumbnail to ' + serverUploadURL);
+                            });
                         });
-                        pipepost.on('end', function() {
-                            log.info('wrote thumbnail to ' + serverUploadURL);
+                        readStream.on('error', function(err) {
+                            log.error('ERROR: couldnt read thumbnail file for transmission to server');
                         });
-                    });
-                    readStream.on('error', function(err) {
-                        log.error('ERROR: couldnt read thumbnail file for transmission to server');
-                    });
-                }
-            });
+
+                        if (argv.pushoriginal) {
+                            // push original full sized file to server
+                            var readStream2 = fs.createReadStream(originalFile);
+                            var posturl2 = serverUploadOriginalURL + filename;
+                            readStream2.on('open', function() {
+                                // pipe the readstream data in to a post request (it will set the content type)
+                                var pipepost2 = readStream2.pipe(request.post(posturl2));
+                                pipepost2.on('error', function(err) {
+                                    log.error('ERROR: couldnt to post full file to server - make sure it is running');
+                                });
+                                pipepost2.on('end', function() {
+                                    log.info('wrote full file to ' + serverUploadOriginalURL);
+                                });
+                            });
+                            readStream2.on('error', function(err) {
+                                log.error('ERROR: couldnt read full file for transmission to server');
+                            });
+                        }
+                    }
+                });
+        }, argv.timedelay);
     } else {
         log.trace('filename not provided, ignoring this event');
         return;
